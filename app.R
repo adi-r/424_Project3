@@ -3,11 +3,12 @@ setwd("C:/Users/aranga22/Downloads/Academics/Sem 2/424 Visual Data/Projects/424_
 
 # LIBRARIES=======================================================================================================
 library(lubridate)
-library(DT)
 library(ggplot2)
-library(plotly)
 library(leaflet)
 library(leaflet.providers)
+library(maptools)
+library(rgdal)
+library(viridis)
 library(dplyr)
 library(DT)
 library(tidyr)
@@ -16,13 +17,9 @@ library(shiny)
 library(shinyjs)
 library(shinydashboard)
 library(stringr)
-library(shinyjs)
-library(maptools)
-library(rgdal)
-library(viridis)
+
 
 options(scipen=999)
-memory.limit(24000)
 
 # READ DATA=======================================================================================================
 all_df <- do.call(rbind, lapply(list.files(pattern = "*.csv"), read.csv))
@@ -816,7 +813,7 @@ server <- function(input, output, session){
         addProviderTiles(providers$CartoDB.Positron) %>%
         addPolygons(data=spt,
                     weight=1,
-                    highlightOptions = highlightOptions(color = "white", weight = 2,bringToFront = TRUE)
+                    highlightOptions = highlightOptions(color = "white", weight = 3, bringToFront = TRUE)
         )
     }
     else{
@@ -830,7 +827,7 @@ server <- function(input, output, session){
         addProviderTiles(providers$CartoDB.Positron) %>%
         addPolygons(data=spt,
                     weight=1,
-                    highlightOptions = highlightOptions(color = "white", weight = 2,bringToFront = TRUE)
+                    highlightOptions = highlightOptions(color = "white", weight = 3, bringToFront = TRUE)
         )
       spt_from <- spt
       spt_to <- spt
