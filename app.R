@@ -1,6 +1,5 @@
-#setwd("C:/Users/aranga22/Downloads/Academics/Sem 2/424 Visual Data/Projects/424_Project2")
-#setwd("C:/Users/Krishnan CS/424_Project2")
-#print(getwd())
+setwd("C:/Users/aranga22/Downloads/Academics/Sem 2/424 Visual Data/Projects/424_Project3")
+
 
 # LIBRARIES=======================================================================================================
 library(lubridate)
@@ -8,8 +7,9 @@ library(DT)
 library(ggplot2)
 library(plotly)
 library(leaflet)
-library(leaflet.extras)
+library(leaflet.providers)
 library(dplyr)
+library(DT)
 library(tidyr)
 library(scales)
 library(shiny)
@@ -17,6 +17,9 @@ library(shinyjs)
 library(shinydashboard)
 library(stringr)
 library(shinyjs)
+library(maptools)
+library(rgdal)
+library(viridis)
 
 options(scipen=999)
 memory.limit(24000)
@@ -45,21 +48,9 @@ comm_names <- unique(row.names(communities))
 comm_names <-  c("All Communities" = "all_comms", "Outside Chicago" = 0, comm_names)
 
 
-
-#setting initial leaflet map  
-map <- leaflet(options= leafletOptions(preferCanvas = T)) %>%
-  addTiles() %>% 
-  addProviderTiles("OpenStreetMap.Mapnik", group = "Default") %>%
-  addProviderTiles("OpenRailwayMap", group = "CTA Lines") %>%
-  addProviderTiles("CartoDB.Positron", group = "Minimal") %>%
-  #Resettable map
-  addResetMapButton() %>%
-  #Choice for background
-  addLayersControl(
-    baseGroups = c("Default", "CTA Lines", "Minimal"),
-    options = layersControlOptions(collapsed = FALSE),
-    position = "bottomright"
-  )
+# Map shape file
+shape_file <- readOGR('shapes')
+spt <- spTransform(shape_file, CRS("+proj=longlat +datum=WGS84"))
 
 #Credits for below code snippet: https://stackoverflow.com/questions/70288989/programatically-trigger-marker-mouse-click-event-in-r-leaflet-for-shiny
 
@@ -131,7 +122,7 @@ ui <- fluidPage(
               
               fluidRow(
                 selectizeInput('comm_view', "Community Areas", choices = comm_names,
-                               selected = "all_comms")
+                               selected = "OHARE")
               ),
               
               
@@ -159,7 +150,7 @@ ui <- fluidPage(
            #Yearly graph column 
            column( width = 4,
                    #The yearly graph for station goes here 
-                   fluidRow(style = "margin-top:300px; height:60vh;",plotlyOutput(height = "100%", "percentage_graph"))
+                   fluidRow(style = "margin-top:300px; height:60vh;",plotlyOutput(height = "100%", "percentageage_graph"))
                    
            )
            
@@ -216,6 +207,7 @@ server <- function(input, output, session){
             data <- subset(data, dropoff == code)
           }
           else{
+            code = communities[input$comm_view, ]
             data <- subset(data, pickup == code)
           }
         }
@@ -396,6 +388,105 @@ server <- function(input, output, session){
       )
     }
     
+    
+    
+  })
+  
+  
+  mapdata <- reactive({
+    data <- sub_df
+    if(input$taxi_view != "all_taxis"){
+      code = companies[input$taxi_view,]
+      data <- subset(data, code == code)
+    }
+    
+    if(input$comm_view != "all_comms"){
+      code = communities[input$comm_view, ]
+      if(input$dir_view == "to"){
+        data <- subset(data, dropoff == code)
+      }
+      else{
+        data <- subset(data, pickup == code)
+      }
+        
+      trips <- data %>%
+        select(`pickup`,`dropoff`) %>%
+        gather(dir, area_num_1) %>%
+        count(dir, area_num_1) %>%
+        drop_na(area_num_1) %>%
+        mutate(area_num_1 = as.character(area_num_1)) %>%
+        rename(count = n)
+      
+      tot <- max(trips$count)
+      trips$percentage <- ((trips$count)/tot)*100
+      return(trips)
+    }
+    
+  })
+  
+  output$map_dash <- renderLeaflet({
+    trips <- mapdata()
+    
+    leaflet(spt) %>% 
+      addTiles() %>% 
+      setView(lat=41.891105, lng=-87.652480,zoom = 10) %>%
+      addProviderTiles(providers$CartoDB.Positron) %>%
+      addPolygons(data=spt,
+                  weight=1,
+                  highlightOptions = highlightOptions(color = "white", weight = 2,bringToFront = TRUE)
+      )
+    
+    spt_from <- spt
+    spt_to <- spt
+    
+    spt_from@data <- spt_from@data %>%
+      left_join(filter(trips, dir == 'pickup'), by = 'area_num_1')
+    
+    spt_to@data <- spt_to@data %>%
+      left_join(filter(trips, dir == 'dropoff'), by = 'area_num_1')
+    
+    bins <- c(0, 0.3, 0.5, 1, 2,3,4,5,6,7,9,10,50,100)
+    pal <- colorBin("inferno", domain = (spt@data$percentage), bins = bins)
+    
+    from_labels <- sprintf(
+      "<strong>Community: %s</strong><br/>percentageage=%g",
+      spt_from@data$community, spt_from@data$percentage
+    ) %>% lapply(htmltools::HTML)
+    
+    to_labels <- sprintf(
+      "<strong>Community: %s</strong><br/>percentageage=%g",
+      spt_to@data$community, spt_to@data$percentage
+    ) %>% lapply(htmltools::HTML)
+    
+    leaflet(spt_from) %>% 
+      addTiles() %>% 
+      setView(lat=41.891105, lng=-87.652480,zoom = 10) %>%
+      addProviderTiles(providers$CartoDB.Positron) %>%
+      addPolygons(data=spt_from,
+                  weight=1,
+                  fillColor = ~pal(percentage),
+                  fillOpacity = 0.6,
+                  group = "Pick-Ups",
+                  highlightOptions = highlightOptions(color = "white", weight = 2,
+                                                      bringToFront = TRUE),
+                  label=~from_labels) %>%
+      addPolygons(data=spt_to,
+                  weight=1,
+                  fillColor = ~pal(percentage),
+                  fillOpacity = 0.6,
+                  group = "Drop-offs",
+                  highlightOptions = highlightOptions(color = "white", weight = 2,
+                                                      bringToFront = TRUE),
+                  label=~to_labels) %>%
+      addLegend(pal = pal, 
+                values = ~percentage,
+                opacity = 0.6, 
+                title = "Taxi Trips %",
+                position = "topright") %>%
+      addLayersControl(
+        baseGroups = c("Pick-Ups", "Drop-offs"),
+        options = layersControlOptions(collapsed = FALSE)
+      )
     
     
   })

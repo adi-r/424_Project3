@@ -1,11 +1,12 @@
-setwd("C:/Users/aranga22/Downloads/Academics/Sem 2/424 Visual Data/Projects/424_Project3")
-getwd()
-
+# setwd("C:/Users/aranga22/Downloads/Academics/Sem 2/424 Visual Data/Projects/424_Project3")
+# getwd()
+memory.limit(24000)
 # LIBRARIES========================================================================================================================
 library(lubridate)
 library(dplyr)
 library(ggplot2)
 library(stringr)
+library(tidyr)
 library(purrr)
 library(data.table)
 
@@ -134,10 +135,10 @@ str(taxi_data)
 # write.table(final_data, file='final_data.tsv', quote=FALSE, sep='\t')
 # 
 # Output final data file into chunks
-no_of_chunks <- 50
-f <- ceiling(1:nrow(taxi_data) / nrow(taxi_data) * 35)
-res <- split(taxi_data, f)
-map2(res, paste0("part_", names(res), ".csv"), write.csv)
+# no_of_chunks <- 50
+# f <- ceiling(1:nrow(taxi_data) / nrow(taxi_data) * 35)
+# res <- split(taxi_data, f)
+# map2(res, paste0("part_", names(res), ".csv"), write.csv)
 
 
 
@@ -184,7 +185,80 @@ map2(res, paste0("part_", names(res), ".csv"), write.csv)
 # taxi_data
 # 
 # memory.limit(24000)
-months_shit <- taxi_data %>% 
-  count(month_name)
+# months_shit <- taxi_data %>% 
+#   count(month_name)
+# 
+# colnames(months_shit)
+library(magrittr)
+test_df <- taxi_data %>% group_by(pickup, dropoff) %>% summarise(n = n()) %>% mutate(Freq = n/sum(n))
+test_df
 
-colnames(months_shit)
+tripByArea <- taxi_data %>%
+  select(`pickup`,`dropoff`) %>%
+  gather(variable,area_num_1) %>%
+  count(variable,area_num_1) %>%
+  drop_na(area_num_1) %>%
+  mutate(area_num_1 = as.character(area_num_1))
+
+
+tripByArea
+
+nrow(test_df[which(test_df$dropoff == 1),])
+colnames(test_df)
+test_df[which(test_df$pickup==2), ]
+
+tripto <- aggregate(taxi_data$n, by=list(taxi_data$dropoff), FUN=length)
+tripto$dir <- "dropoff"
+tripto <- tripto %>%
+  rename(comm_code = Group.1,
+         count = x)
+tripto$comm_code <- as.character(tripto$comm_code)
+str(tripto)
+total <-tripto$count[length(tripto$count)]
+print(total)
+tripto <- tripto %>% drop_na(comm_code)
+tripto$percentage <- ((tripto$count)/total)*100
+nrow(tripto)
+
+
+library(lubridate)
+library(DT)
+library(ggplot2)
+library(plotly)
+library(leaflet)
+library(leaflet.providers)
+library(dplyr)
+library(DT)
+library(tidyr)
+library(scales)
+library(shiny)
+library(shinyjs)
+library(shinydashboard)
+library(stringr)
+library(shinyjs)
+library(maptools)
+library(rgdal)
+library(viridis)
+shape_file <- readOGR('shapes')
+spt <- spTransform(shape_file, CRS("+proj=longlat +datum=WGS84"))
+spt@data$percentage
+spt@data
+
+test_df <- subset(taxi_data, pickup > 0 & dropoff > 0)
+
+
+trips <- test_df %>%
+  select(`pickup`,`dropoff`) %>%
+  gather(dir, area_num_1) %>%
+  count(dir, area_num_1) %>%
+  drop_na(area_num_1) %>%
+  mutate(area_num_1 = as.character(area_num_1)) %>%
+  rename(count = n)
+
+trips
+tot <- trips$count[length(trips$count)]
+tot
+trips$percent <- ((trips$count)/tot)*100
+trips
+test_df <- test_df[which(test_df$pickup ==29), ]
+trips$count[1]
