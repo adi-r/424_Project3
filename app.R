@@ -612,6 +612,25 @@ server <- function(input, output, session){
       ))
   })
   
+  # Percentage Table Layout
+  output$pct_table <- renderUI({
+    div(
+      datatable(
+        pct_table(),
+        options = list(
+          initComplete = JS(
+            "function(settings, json) {",
+            "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
+            "}"),
+          pageLength = 7,
+          scrollX = TRUE,
+          dom = 'tp',
+          columnDefs = list(list(width = '500px', className = 'dt-center', targets = "_all"))
+        ),
+        rownames = FALSE
+      ))
+  })
+  
   # === UI OUTPUT ===
   output$plot_and_table <- renderUI({
     
@@ -719,13 +738,12 @@ server <- function(input, output, session){
   })
   
   output$map_dash <- renderLeaflet({
-    trips <- mapdata()
     
     if(input$comm_view == "all_comms"){
       # Basic Map Layout
       leaflet(spt) %>% 
         addTiles() %>% 
-        setView(lat=41.891105, lng=-87.652480,zoom = 10) %>%
+        setView(lat=41.891105, lng=-87.652480,zoom = 11) %>%
         addProviderTiles(providers$CartoDB.Positron) %>%
         addPolygons(data=spt,
                     weight=1,
@@ -733,10 +751,13 @@ server <- function(input, output, session){
         )
     }
     else{
+      # Get community data and percentage
+      trips <- mapdata()
+      
       # basic Map
       leaflet(spt) %>% 
         addTiles() %>% 
-        setView(lat=41.891105, lng=-87.652480,zoom = 10) %>%
+        setView(lat=41.891105, lng=-87.652480,zoom = 11) %>%
         addProviderTiles(providers$CartoDB.Positron) %>%
         addPolygons(data=spt,
                     weight=1,
@@ -745,15 +766,17 @@ server <- function(input, output, session){
       spt_from <- spt
       spt_to <- spt
       
+      # Join Percentage data to shape file 
       spt_from@data <- spt_from@data %>%
         left_join(filter(trips, dir == 'pickup'), by = 'area_num_1')
       
       spt_to@data <- spt_to@data %>%
         left_join(filter(trips, dir == 'dropoff'), by = 'area_num_1')
       
-      bins <- c(0, 0.3, 0.5, 1, 2,3,4,5,6,7,9,10,50,100)
-      pal <- colorBin("inferno", domain = (spt@data$percentage), bins = bins)
+      bins <- c(0, 0.3, 0.5, 1, 2, 3, 4, 5, 6, 7, 9, 10, 50, 100)
+      pal <- colorBin("viridis", domain = (spt@data$percentage), bins = bins)
       
+      # label data for info hover
       from_labels <- sprintf(
         "<strong>Community: %s</strong><br/>percent=%g",
         spt_from@data$community, spt_from@data$percentage
@@ -786,9 +809,9 @@ server <- function(input, output, session){
                     label=~to_labels) %>%
         addLegend(pal = pal, 
                   values = ~percentage,
-                  opacity = 0.6, 
+                  opacity = 0.4, 
                   title = "Rides %",
-                  position = "topleft") %>%
+                  position = "topright") %>%
         addLayersControl(
           baseGroups = c("pick-up", "drop-off"),
           options = layersControlOptions(collapsed = FALSE)
