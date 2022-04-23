@@ -41,10 +41,12 @@ sub_df <- subset(all_df, pickup > 0 & dropoff > 0)
 
 # Create 'companies' to store list of all taxi companies
 company_names <- unique(row.names(companies))
+company_names <- sort(company_names, decreasing = FALSE)
 company_names <-  c("All Taxis" = "all_taxis", company_names)
 
 # Create 'comms' to store list of all Community areas
 comm_names <- unique(row.names(communities))
+comm_names <- sort(comm_names, decreasing = FALSE)
 comm_names <-  c("All Communities" = "all_comms", "Outside Chicago" = 0, comm_names)
 
 
@@ -76,10 +78,10 @@ ui <- fluidPage(
             wellPanel(
               #About goes here
               HTML(" <h1><b>About</b></h1> 
-             <h2>Developed as part of Project 2 for CS424 (Visualization and Visual Analytics) - UIC Spring 2022</h2>
-             <h2><b>Authors:</b> Aditya R, Krishnan CS </h2>
-             <h2> <b>Created February 5th, 2022</b></h2>,
-             <h3> This App presents the Chicago CTA Ridership data and Lat/Long data obtained from the Chicago Data Portal website </h3>
+             <h2>Developed as part of Project 3 for CS424 (Visualization and Visual Analytics) - UIC Spring 2022</h2>
+             <h2><b>Authors:</b> Aditya R </h2>
+             <h2> <b>Created April 20th, 2022</b></h2>,
+             <h3> This App presents the Chicago Taxi Ridership data in the various community areas obtained from the Chicago Data Portal website </h3>
              <h3> <b> *Data Sources: </b></h3>
              <h3><a href=\"https://data.cityofchicago.org/Transportation/CTA-Ridership-L-Station-Entries-Daily-Totals/5neh-572f\">link L-Ridership data</a> </h3>
           <h3>  <a href=\"https://data.cityofchicago.org/Transportation/CTA-System-Information-List-of-L-Stops/8pix-ypme\">link L-System_Information data</a> </h3>
@@ -129,7 +131,8 @@ ui <- fluidPage(
               fluidRow(
                 selectInput("bar_view", "Bar Plot View", choices = c("Day of Year" = "daily", "Hour of Day" = 'hourly', 
                                                                      "Day of Week" = "weekly", "Month of Year" = "monthly", 
-                                                                     "Binned Mileage" = "bmile", "Binned Trip Time" = "btime")),
+                                                                     "Binned Mileage" = "bmile", "Binned Trip Time" = "btime",
+                                                                     "Percent Graph" = "pct")),
               )
             )#Wellpanel1
     ), #Column-1
@@ -137,17 +140,17 @@ ui <- fluidPage(
     #Rest of the stuff
     column(width = 10,
            
-           #Bar plot column 
+           #Map 
            column(width = 4,
                   fluidRow( style = "height:85vh;", leafletOutput(height = "100%","map_dash"))
            ),
            
-           #Line data Table and map column
+           # Bar Plot
            column( width = 4,
                    fluidRow(style = "height:15vh;", uiOutput(height = "150%", style ="width: 100%;","plot_and_table")),
                    ),
            
-           #Yearly graph column 
+           # Tables 
            column( width = 4,
                    #The yearly graph for station goes here 
                    fluidRow(style = "margin-top:300px; height:60vh;",plotlyOutput(height = "100%", "percentage_graph"))
@@ -165,7 +168,8 @@ ui <- fluidPage(
 
 # SERVER=======================================================================================================
 server <- function(input, output, session){
-  # Filter data based on conditions
+  
+  # ===DATA PROCESSING===
   dataframeReactive <- reactive({ 
     if(input$comm_areas == "incl_comm"){
       data <- all_df
@@ -178,6 +182,7 @@ server <- function(input, output, session){
       
       # Filter data by community area
       if(input$comm_view != "all_comms"){
+        # Filter by direction
         if(input$dir_view == "to"){
           code = communities[input$comm_view, ]
           data <- subset(data, dropoff == code)
@@ -190,11 +195,13 @@ server <- function(input, output, session){
     else{
       data <- sub_df
       
+      # Filter data by taxi company
       if(input$taxi_view != 'all_taxis'){
         code = companies[input$taxi_view,]
         data <- subset(data, code == code)
       }
       
+      # Filter data by community
       if(input$comm_view != "all_comms"){
         if(input$comm_view == 0){
           validate(
@@ -202,6 +209,7 @@ server <- function(input, output, session){
           )
         }
         else{
+          # Filter by direction
           if(input$dir_view == "to"){
             code = communities[input$comm_view, ]
             data <- subset(data, dropoff == code)
@@ -219,6 +227,8 @@ server <- function(input, output, session){
     
   })
   
+  # === PLOT DATAFRAMES =====
+  # Daily dataframe
   daily_df <- reactive({
     # Retrieve data
     data <- dataframeReactive()
@@ -227,12 +237,15 @@ server <- function(input, output, session){
     return(data)
   })
   
+  # Daily Table
   daily_table <- reactive({
     table_frame <- daily_df()
     table_frame <- table_frame %>% count(date) %>% rename(Dates = date, Rides = n)
     return(table_frame)
   })
   
+  
+  # Monthly Dataframe
   monthly_df <- reactive({
     # Retrieve data
     data <- dataframeReactive()
@@ -241,12 +254,14 @@ server <- function(input, output, session){
     return(data)
   })
   
+  # Monthly table
   monthly_table <- reactive({
     table_frame <- monthly_df()
     table_frame <- table_frame %>% count(month_name) %>% rename(Month = month_name, Rides = n)
     return(table_frame)
   })
   
+  # Weekly Dataframe
   weekly_df <- reactive({
     # Retrieve data
     data <- dataframeReactive()
@@ -255,12 +270,14 @@ server <- function(input, output, session){
     return(data)
   })
   
+  # Weekly table
   weekly_table <- reactive({
     table_frame <- weekly_df()
     table_frame <- table_frame %>% count(week_day) %>% rename(`Week Day` = week_day, Rides = n)
     return(table_frame)
   })
   
+  # hourly Dataframe
   hourly_df <- reactive({
     # Retrieve data
     
@@ -270,6 +287,7 @@ server <- function(input, output, session){
     return(data)
   })
   
+  # Hourly Table
   hourly_table <- reactive({
     
     table_frame <- hourly_df()
@@ -310,31 +328,55 @@ server <- function(input, output, session){
     
   })
   
+  # Binned Mile dataframe
   mile_df <- reactive({
     # Retrieve data
     data <- dataframeReactive()
     
-    breaks <- c(0, 1, 1.25, 1.5, 2, 2.5, 3, 5, 8, 10, 15, 20, 25, 30, 45, 101)
-    bins <- c("[0.5-1]","[1-1.25]","[1.25-1.5]","[1.5-2]","[2-2.5]", "[2.5-3]","[3-5]","[5-8]","[8-10]","[10-15]",
-              "[15-20]","[20-25]","[25-30]","[30-45]","[45-100]")
-    
-    args <- cut(data$miles, 
+    # Check distance metric
+    if(input$dist_view == "mi"){
+      breaks <- c(0, 1, 1.25, 1.5, 2, 2.5, 3, 5, 8, 10, 15, 20, 25, 30, 45, 101)
+      bins <- c("[0.5-1]","[1-1.25]","[1.25-1.5]","[1.5-2]","[2-2.5]", "[2.5-3]","[3-5]","[5-8]","[8-10]","[10-15]",
+                "[15-20]","[20-25]","[25-30]","[30-45]","[45-100]")
+      
+      args <- cut(data$miles, 
                   breaks=breaks,
                   labels=bins,
                   include.lowest=TRUE, 
                   right=FALSE
-                  )
+      )
+      
+      data <- as_tibble(args)
+      return(data)
+    }
     
-    data <- as_tibble(args)
-    return(data)
+    else{
+      breaks <- c(0, 1, 1.5, 2, 2.5, 3, 5, 8, 10, 12, 15, 20, 25, 30, 45, 101, 150)
+      bins <- c("[0.5-1]","[1-1.5]","[1.5-2]","[2-2.5]", "[2.5-3]","[3-5]","[5-8]","[8-10]","[10-12]",
+                "[12-15]", "[15-20]","[20-25]","[25-30]","[30-45]","[45-100]", "[100-150]")
+      
+      data$km <- data$miles * 1.60934
+      
+      args <- cut(data$km, 
+                  breaks=breaks,
+                  labels=bins,
+                  include.lowest=TRUE, 
+                  right=FALSE
+      )
+      
+      data <- as_tibble(args)
+      return(data)
+    }
   })
   
+  # Binned Mile Table
   mile_table <- reactive({
     table_frame <- mile_df()
     table_frame <- table_frame %>% count(value) %>% rename(`Distance Range` = value, Rides = n)
     return(table_frame)
   })
   
+  # Binned Trip data frame
   trip_df <- reactive({
     # Retrieve data
     data <- dataframeReactive()
@@ -352,12 +394,31 @@ server <- function(input, output, session){
     return(data)
   })
   
+  # Binned Trip table
   trip_table <- reactive({
     table_frame <- trip_df()
     table_frame <- table_frame %>% count(value) %>% rename(`Time Range` = value, Rides = n)
     return(table_frame)
   })
   
+  # Percentage Dataframe
+  pct_df <- reactive({
+    table_frame <- mapdata()
+    # Check for direction
+    if(input$dir_view == "to"){
+      table_frame<-table_frame[!(table_frame$dir == "dropoff"),]
+      return(table_frame)
+    }
+    else{
+      table_frame<-table_frame[!(table_frame$dir == "pickup"),]
+      return(table_frame)
+    }
+    
+  })
+  
+  # === BAR PLOTS ===
+  
+  # Daily Plot
   output$daily_plot <- renderPlot({
     ggplot(data=daily_df(), aes(x=date)) +
       geom_bar(stat="count") +
@@ -365,6 +426,7 @@ server <- function(input, output, session){
       labs(x="Date", y="Total Rides", title="Total Rides by Date")
   })
   
+  # Monthly Plot
   output$monthly_plot <- renderPlot({
     ggplot(data=monthly_df(), aes(x=month_name)) +
       geom_bar(stat="count") +
@@ -372,6 +434,7 @@ server <- function(input, output, session){
       labs(x="Month", y="Total Rides", title="Total Rides by Date")
   })
   
+  # Weekly Plot
   output$weekly_plot <- renderPlot({
     ggplot(data=weekly_df(), aes(x=week_day)) +
       geom_bar(stat="count") +
@@ -379,8 +442,10 @@ server <- function(input, output, session){
       labs(x="Week Day", y="Total Rides", title="Total Rides by Date")
   })
   
+  # Hourly Plot
   output$hourly_plot <- renderPlot({
     
+    # Check for time format
     if (input$time_view=="hr_24"){
       ggplot(data=hourly_df(), aes(x=hour)) +
         geom_bar(stat="count") +
@@ -400,13 +465,24 @@ server <- function(input, output, session){
     
   })
   
+  # Binned mile plot
   output$mile_plot <- renderPlot({
-    ggplot(data=mile_df(), aes(x=value)) +
-      geom_bar(width = 1.0) +
-      scale_y_continuous(labels = comma) +
-      labs(x="Miles", y="Total Rides", title="Total Rides by Mileage")
+    if(input$dist_view == "mi"){
+      ggplot(data=mile_df(), aes(x=value)) +
+        geom_bar(width = 1.0) +
+        scale_y_continuous(labels = comma) +
+        labs(x="Miles", y="Total Rides", title="Total Rides by Mileage")
+    }
+    else{
+      ggplot(data=mile_df(), aes(x=value)) +
+        geom_bar(width = 1.0) +
+        scale_y_continuous(labels = comma) +
+        labs(x="Kilometres", y="Total Rides", title="Total Rides by Kilometre")
+    }
+    
   })
   
+  # Binned Trip Plot
   output$trip_plot <- renderPlot({
     ggplot(data=trip_df(), aes(x=value)) +
       geom_bar(width = 1.0) +
@@ -414,9 +490,15 @@ server <- function(input, output, session){
       labs(x="Trip Time", y="Total Rides", title="Total Rides by Trip Time")
   })
   
+  # Percentage Plot
+  output$pct_plot <- renderPlot({
+    ggplot(data = pct_df(), aes(x = area_num_1, y = percentage)) +
+      geom_bar(stat = "identity") + 
+      labs(x = "Community Area", y ="Percent of Rides", title = "%age of Rides to/from") 
+  })
   
-  # TABLES
-  
+  # === TABLES LAYOUT ===
+  # Daily Layout
   output$daily_table <- renderUI({
     div(
       datatable(
@@ -435,6 +517,7 @@ server <- function(input, output, session){
       ))
   })
   
+  # Hourly Layout
   output$hourly_table <- renderUI({
     div(
       datatable(
@@ -453,6 +536,7 @@ server <- function(input, output, session){
       ))
   })
   
+  # Weekly Layout
   output$weekly_table <- renderUI({
     div(
       datatable(
@@ -471,6 +555,7 @@ server <- function(input, output, session){
       ))
   })
   
+  # Monthly Layout
   output$monthly_table <- renderUI({
     div(
       datatable(
@@ -489,6 +574,7 @@ server <- function(input, output, session){
       ))
   })
   
+  # Binned Mile Layout
   output$mile_table <- renderUI({
     div(
       datatable(
@@ -507,6 +593,7 @@ server <- function(input, output, session){
       ))
   })
   
+  # Binned Trip Layout
   output$trip_table <- renderUI({
     div(
       datatable(
@@ -524,7 +611,8 @@ server <- function(input, output, session){
         rownames = FALSE
       ))
   })
-  # render graph and table output
+  
+  # === UI OUTPUT ===
   output$plot_and_table <- renderUI({
     
     if(input$bar_view == "daily"){
@@ -572,6 +660,15 @@ server <- function(input, output, session){
         )
       )
     }
+    else if(input$bar_view == "pct"){
+      fluidPage(
+        fluidRow(
+          column(12, div(plotOutput("pct_plot"))),
+          #HTML("</br></br></br></br></br>"),
+          #column(12, uiOutput("mile_table"))
+        )
+      )
+    }
     else{
       fluidPage(
         fluidRow(
@@ -586,7 +683,9 @@ server <- function(input, output, session){
     
   })
   
+# MAP=================================
   
+  # MAP DATA
   mapdata <- reactive({
     data <- sub_df
     if(input$taxi_view != "all_taxis"){
@@ -603,6 +702,7 @@ server <- function(input, output, session){
         data <- subset(data, pickup == code)
       }
         
+      # Aggregate data to find percentage of rides in each community
       trips <- data %>%
         select(`pickup`,`dropoff`) %>%
         gather(dir, area_num_1) %>%
@@ -621,66 +721,82 @@ server <- function(input, output, session){
   output$map_dash <- renderLeaflet({
     trips <- mapdata()
     
-    leaflet(spt) %>% 
-      addTiles() %>% 
-      setView(lat=41.891105, lng=-87.652480,zoom = 10) %>%
-      addProviderTiles(providers$CartoDB.Positron) %>%
-      addPolygons(data=spt,
-                  weight=1,
-                  highlightOptions = highlightOptions(color = "white", weight = 2,bringToFront = TRUE)
-      )
+    if(input$comm_view == "all_comms"){
+      # Basic Map Layout
+      leaflet(spt) %>% 
+        addTiles() %>% 
+        setView(lat=41.891105, lng=-87.652480,zoom = 10) %>%
+        addProviderTiles(providers$CartoDB.Positron) %>%
+        addPolygons(data=spt,
+                    weight=1,
+                    highlightOptions = highlightOptions(color = "white", weight = 2,bringToFront = TRUE)
+        )
+    }
+    else{
+      # basic Map
+      leaflet(spt) %>% 
+        addTiles() %>% 
+        setView(lat=41.891105, lng=-87.652480,zoom = 10) %>%
+        addProviderTiles(providers$CartoDB.Positron) %>%
+        addPolygons(data=spt,
+                    weight=1,
+                    highlightOptions = highlightOptions(color = "white", weight = 2,bringToFront = TRUE)
+        )
+      spt_from <- spt
+      spt_to <- spt
+      
+      spt_from@data <- spt_from@data %>%
+        left_join(filter(trips, dir == 'pickup'), by = 'area_num_1')
+      
+      spt_to@data <- spt_to@data %>%
+        left_join(filter(trips, dir == 'dropoff'), by = 'area_num_1')
+      
+      bins <- c(0, 0.3, 0.5, 1, 2,3,4,5,6,7,9,10,50,100)
+      pal <- colorBin("inferno", domain = (spt@data$percentage), bins = bins)
+      
+      from_labels <- sprintf(
+        "<strong>Community: %s</strong><br/>percent=%g",
+        spt_from@data$community, spt_from@data$percentage
+      ) %>% lapply(htmltools::HTML)
+      
+      to_labels <- sprintf(
+        "<strong>Community: %s</strong><br/>percent=%g",
+        spt_to@data$community, spt_to@data$percentage
+      ) %>% lapply(htmltools::HTML)
+      
+      leaflet(spt_from) %>% 
+        addTiles() %>% 
+        setView(lat=41.891105, lng=-87.652480,zoom = 10) %>%
+        addProviderTiles(providers$CartoDB.Positron) %>%
+        addPolygons(data=spt_from,
+                    weight=1,
+                    fillColor = ~pal(percentage),
+                    fillOpacity = 0.6,
+                    group = "pick-up",
+                    highlightOptions = highlightOptions(color = "white", weight = 2,
+                                                        bringToFront = TRUE),
+                    label=~from_labels) %>%
+        addPolygons(data=spt_to,
+                    weight=1,
+                    fillColor = ~pal(percentage),
+                    fillOpacity = 0.6,
+                    group = "drop-off",
+                    highlightOptions = highlightOptions(color = "white", weight = 2,
+                                                        bringToFront = TRUE),
+                    label=~to_labels) %>%
+        addLegend(pal = pal, 
+                  values = ~percentage,
+                  opacity = 0.6, 
+                  title = "Rides %",
+                  position = "topleft") %>%
+        addLayersControl(
+          baseGroups = c("pick-up", "drop-off"),
+          options = layersControlOptions(collapsed = FALSE)
+        )
+    }
     
-    spt_from <- spt
-    spt_to <- spt
     
-    spt_from@data <- spt_from@data %>%
-      left_join(filter(trips, dir == 'pickup'), by = 'area_num_1')
     
-    spt_to@data <- spt_to@data %>%
-      left_join(filter(trips, dir == 'dropoff'), by = 'area_num_1')
-    
-    bins <- c(0, 0.3, 0.5, 1, 2,3,4,5,6,7,9,10,50,100)
-    pal <- colorBin("inferno", domain = (spt@data$percentage), bins = bins)
-    
-    from_labels <- sprintf(
-      "<strong>Community: %s</strong><br/>percentageage=%g",
-      spt_from@data$community, spt_from@data$percentage
-    ) %>% lapply(htmltools::HTML)
-    
-    to_labels <- sprintf(
-      "<strong>Community: %s</strong><br/>percentageage=%g",
-      spt_to@data$community, spt_to@data$percentage
-    ) %>% lapply(htmltools::HTML)
-    
-    leaflet(spt_from) %>% 
-      addTiles() %>% 
-      setView(lat=41.891105, lng=-87.652480,zoom = 10) %>%
-      addProviderTiles(providers$CartoDB.Positron) %>%
-      addPolygons(data=spt_from,
-                  weight=1,
-                  fillColor = ~pal(percentage),
-                  fillOpacity = 0.6,
-                  group = "Pick-Ups",
-                  highlightOptions = highlightOptions(color = "white", weight = 2,
-                                                      bringToFront = TRUE),
-                  label=~from_labels) %>%
-      addPolygons(data=spt_to,
-                  weight=1,
-                  fillColor = ~pal(percentage),
-                  fillOpacity = 0.6,
-                  group = "Drop-offs",
-                  highlightOptions = highlightOptions(color = "white", weight = 2,
-                                                      bringToFront = TRUE),
-                  label=~to_labels) %>%
-      addLegend(pal = pal, 
-                values = ~percentage,
-                opacity = 0.6, 
-                title = "Taxi Trips %",
-                position = "topright") %>%
-      addLayersControl(
-        baseGroups = c("Pick-Ups", "Drop-offs"),
-        options = layersControlOptions(collapsed = FALSE)
-      )
     
     
   })
