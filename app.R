@@ -148,13 +148,13 @@ ui <- fluidPage(
            
            # Bar Plot
            column( width = 4,
-                   fluidRow(style = "height:15vh;", uiOutput(height = "150%", style ="width: 100%;","plot_and_table")),
+                   fluidRow(style = "height:15vh;", uiOutput(height = "150%", style ="width: 100%;","plots")),
                    ),
            
            # Tables 
            column( width = 4,
                    #The yearly graph for station goes here 
-                   fluidRow(style = "margin-top:300px; height:60vh;",plotlyOutput(height = "100%", "percentage_graph"))
+                   fluidRow(style = "margin-top:300px; height:60vh;", uiOutput(height = "100%", "tables"))
                    
            )
            
@@ -657,68 +657,54 @@ server <- function(input, output, session){
   })
   
   # === UI OUTPUT ===
-  output$plot_and_table <- renderUI({
+  output$plots <- renderUI({
     
     if(input$bar_view == "daily"){
       fluidPage(
         fluidRow( style = "height:80vh;",
-                  column(12, div(plotOutput("daily_plot"))),
-                  #HTML("</br></br></br></br></br>"),
-                  column(12, uiOutput("daily_table"))
+                  column(12, div(plotOutput("daily_plot")))
         )
       )
     }
     else if(input$bar_view == "hourly"){
-      fluidPage( style = "height:40vh;",
+      fluidPage( style = "height:80vh;",
                  fluidRow(
-                   column(12, div(plotOutput("hourly_plot"))),
-                   #HTML("</br></br></br></br></br>"),
-                   column(12, uiOutput("hourly_table"))
+                   column(12, div(plotOutput("hourly_plot")))
                  )
       )
     }
     else if(input$bar_view == "weekly"){
-      fluidPage( style = "height:40vh;",
+      fluidPage( style = "height:80vh;",
                  fluidRow(
-                   column(12, div(plotOutput("weekly_plot"))),
-                   #HTML("</br></br></br></br></br>"),
-                   column(12, uiOutput("weekly_table"))
+                   column(12, div(plotOutput("weekly_plot")))
                  )
       )
     }
     else if(input$bar_view == "monthly"){
       fluidPage(
         fluidRow(
-          column(12, div(plotOutput("monthly_plot"))),
-          #HTML("</br></br></br></br></br>"),
-          column(12, uiOutput("monthly_table"))
+          column(12, div(plotOutput("monthly_plot")))
         )
       )
     }
     else if(input$bar_view == "bmile"){
       fluidPage(
         fluidRow(
-          column(12, div(plotOutput("mile_plot"))),
-          #HTML("</br></br></br></br></br>"),
-          column(12, uiOutput("mile_table"))
+          column(12, div(plotOutput("mile_plot")))
         )
       )
     }
     else if(input$bar_view == "pct"){
       fluidPage(
         fluidRow(
-          column(12, div(plotOutput("pct_plot"))),
-          #HTML("</br></br></br></br></br>"),
-          column(12, uiOutput("pct_table"))
+          column(12, div(plotOutput("pct_plot")))
         )
       )
     }
     else{
       fluidPage(
         fluidRow(
-          column(12, div(plotOutput("trip_plot"))),
-          #HTML("</br></br></br></br></br>"),
-          column(12, uiOutput("trip_table"))
+          column(12, div(plotOutput("trip_plot")))
         )
       )
     }
@@ -727,6 +713,64 @@ server <- function(input, output, session){
     
   })
   
+  # Tables Render
+  output$tables <- renderUI({
+    
+    if(input$bar_view == "daily"){
+      fluidPage(
+        fluidRow( style = "height:80vh;",
+                  column(12, div(uiOutput("daily_table")))
+        )
+      )
+    }
+    else if(input$bar_view == "hourly"){
+      fluidPage( style = "height:80vh;",
+                 fluidRow(
+                   column(12, div(uiOutput("hourly_table")))
+                 )
+      )
+    }
+    else if(input$bar_view == "weekly"){
+      fluidPage( style = "height:80vh;",
+                 fluidRow(
+                   column(12, div(uiOutput("weekly_table")))
+                 )
+      )
+    }
+    else if(input$bar_view == "monthly"){
+      fluidPage( style = "height:80vh;",
+        fluidRow(
+          column(12, div(uiOutput("monthly_table")))
+        )
+      )
+    }
+    else if(input$bar_view == "bmile"){
+      fluidPage( style = "height:80vh;",
+        fluidRow(
+          column(12, div(uiOutput("mile_table")))
+        )
+      )
+    }
+    else if(input$bar_view == "pct"){
+      fluidPage( style = "height:80vh;",
+        fluidRow(
+          column(12, div(uiOutput("pct_table")))
+        )
+      )
+    }
+    else{
+      fluidPage( style = "height:80vh;",
+        fluidRow(
+          column(12, div(uiOutput("trip_table")))
+        )
+      )
+    }
+    
+    
+    
+  })
+  
+####################################################################################################################################################  
 # MAP=================================
   
   # MAP DATA
