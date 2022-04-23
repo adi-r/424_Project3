@@ -144,13 +144,13 @@ ui <- fluidPage(
            
            #Line data Table and map column
            column( width = 4,
-                   fluidRow(style = "height:15vh;", uiOutput(height = "85%", style ="width: 50%;","plot_and_table")),
+                   fluidRow(style = "height:15vh;", uiOutput(height = "150%", style ="width: 100%;","plot_and_table")),
                    ),
            
            #Yearly graph column 
            column( width = 4,
                    #The yearly graph for station goes here 
-                   fluidRow(style = "margin-top:300px; height:60vh;",plotlyOutput(height = "100%", "percentageage_graph"))
+                   fluidRow(style = "margin-top:300px; height:60vh;",plotlyOutput(height = "100%", "percentage_graph"))
                    
            )
            
@@ -227,12 +227,24 @@ server <- function(input, output, session){
     return(data)
   })
   
+  daily_table <- reactive({
+    table_frame <- daily_df()
+    table_frame <- table_frame %>% count(date) %>% rename(Dates = date, Rides = n)
+    return(table_frame)
+  })
+  
   monthly_df <- reactive({
     # Retrieve data
     data <- dataframeReactive()
     data <- data[c("month_name")]
     
     return(data)
+  })
+  
+  monthly_table <- reactive({
+    table_frame <- monthly_df()
+    table_frame <- table_frame %>% count(month_name) %>% rename(Month = month_name, Rides = n)
+    return(table_frame)
   })
   
   weekly_df <- reactive({
@@ -243,50 +255,108 @@ server <- function(input, output, session){
     return(data)
   })
   
+  weekly_table <- reactive({
+    table_frame <- weekly_df()
+    table_frame <- table_frame %>% count(week_day) %>% rename(`Week Day` = week_day, Rides = n)
+    return(table_frame)
+  })
+  
   hourly_df <- reactive({
     # Retrieve data
+    
     data <- dataframeReactive()
     data <- data[c("hour")]
     
     return(data)
   })
   
+  hourly_table <- reactive({
+    
+    table_frame <- hourly_df()
+    
+    if(input$time_view == "hr_24"){
+      table_frame <- table_frame %>% count(hour) %>% rename(Hour = hour, Rides = n)
+      return(table_frame)
+    }
+    else{
+      table_frame$hour[table_frame$hour == 0] <- "12 am"
+      table_frame$hour[table_frame$hour == 1] <- "1 am"
+      table_frame$hour[table_frame$hour == 2] <- "2 am"
+      table_frame$hour[table_frame$hour == 3] <- "3 am"
+      table_frame$hour[table_frame$hour == 4] <- "4 am"
+      table_frame$hour[table_frame$hour == 5] <- "5 am"
+      table_frame$hour[table_frame$hour == 6] <- "6 am"
+      table_frame$hour[table_frame$hour == 7] <- "7 am"
+      table_frame$hour[table_frame$hour == 8] <- "8 am"
+      table_frame$hour[table_frame$hour == 9] <- "9 am"
+      table_frame$hour[table_frame$hour == 10] <- "10 am"
+      table_frame$hour[table_frame$hour == 11] <- "11 am"
+      table_frame$hour[table_frame$hour == 12] <- "12 pm"
+      table_frame$hour[table_frame$hour == 13] <- "1 pm"
+      table_frame$hour[table_frame$hour == 14] <- "2 pm"
+      table_frame$hour[table_frame$hour == 15] <- "3 pm"
+      table_frame$hour[table_frame$hour == 16] <- "4 pm"
+      table_frame$hour[table_frame$hour == 17] <- "5 pm"
+      table_frame$hour[table_frame$hour == 18] <- "6 pm"
+      table_frame$hour[table_frame$hour == 19] <- "7 pm"
+      table_frame$hour[table_frame$hour == 20] <- "8 pm"
+      table_frame$hour[table_frame$hour == 21] <- "9 pm"
+      table_frame$hour[table_frame$hour == 22] <- "10 pm"
+      table_frame$hour[table_frame$hour == 23] <- "11 pm"
+      
+      table_frame <- table_frame %>% count(hour) %>% rename(Hour = hour, Rides = n)
+      return(table_frame)
+    }
+    
+  })
+  
   mile_df <- reactive({
     # Retrieve data
     data <- dataframeReactive()
     
-    breaks <- c(0, 0.75, 1, 1.25, 1.5, 2, 3, 5, 8, 10, 15, 20, 25, 30, 40, 101)
-    bins <- c("[0.5-0.75]","[0.75-1]","[1-1.25]","[1.25-1.5]","[1.5-2]","[2-3]","[3-5]","[5-8]","[8-10]","[10-15]",
-              "[15-20]","[20-25]","[25-30]","[30-40]","[40-100]")
+    breaks <- c(0, 1, 1.25, 1.5, 2, 2.5, 3, 5, 8, 10, 15, 20, 25, 30, 45, 101)
+    bins <- c("[0.5-1]","[1-1.25]","[1.25-1.5]","[1.5-2]","[2-2.5]", "[2.5-3]","[3-5]","[5-8]","[8-10]","[10-15]",
+              "[15-20]","[20-25]","[25-30]","[30-45]","[45-100]")
     
-    groups <- cut(data$miles, 
+    args <- cut(data$miles, 
                   breaks=breaks,
                   labels=bins,
                   include.lowest=TRUE, 
                   right=FALSE
                   )
     
-    data <- as_tibble(groups)
+    data <- as_tibble(args)
     return(data)
+  })
+  
+  mile_table <- reactive({
+    table_frame <- mile_df()
+    table_frame <- table_frame %>% count(value) %>% rename(`Distance Range` = value, Rides = n)
+    return(table_frame)
   })
   
   trip_df <- reactive({
     # Retrieve data
     data <- dataframeReactive()
     
-    breaks <- c(0, 180, 300, 420, 600, 720, 900, 1200, 1800, 2700, 3600, 7200, 10800, 14400, 18000)
-    bins <- c("3min","5min","7min","10min","12min","15min","20min","30min","45min","1hr","2hr","3hr","4hr","5hr")
+    breaks <- c(0, 180, 300, 480, 600, 720, 900, 1200, 1800, 2700, 3600, 7200, 10800, 14400, 18000)
+    bins <- c("3min","5min","8min","10min","12min","15min","20min","30min","45min","1hr","2hr","3hr","4hr","5hr")
     
-    groups <- cut(data$sec,
+    args <- cut(data$sec,
                   breaks=breaks,
                   labels=bins,
                   include.lowest=TRUE,
                   right=FALSE
                   )
-    data <- as_tibble(groups)
+    data <- as_tibble(args)
     return(data)
   })
   
+  trip_table <- reactive({
+    table_frame <- trip_df()
+    table_frame <- table_frame %>% count(value) %>% rename(`Time Range` = value, Rides = n)
+    return(table_frame)
+  })
   
   output$daily_plot <- renderPlot({
     ggplot(data=daily_df(), aes(x=date)) +
@@ -310,10 +380,24 @@ server <- function(input, output, session){
   })
   
   output$hourly_plot <- renderPlot({
-    ggplot(data=hourly_df(), aes(x=hour)) +
-      geom_bar(stat="count") +
-      scale_y_continuous(labels = comma) +
-      labs(x="Time", y="Total Rides", title="Total Rides by Date")
+    
+    if (input$time_view=="hr_24"){
+      ggplot(data=hourly_df(), aes(x=hour)) +
+        geom_bar(stat="count") +
+        scale_y_continuous(labels = comma) +
+        labs(x="Time", y="Total Rides", title="Total Rides by Date")
+    }
+    else{
+      ggplot(data=hourly_df(), aes(x=hour)) +
+        geom_bar(stat="count") +
+        scale_y_continuous(labels = comma) +
+        labs(x="Time", y="Total Rides", title="Total Rides by Date") +
+        scale_x_continuous(breaks = seq(0, 23, 1),
+                           labels =c("12am","1am","2am","3am","4am","5am","6am","7am","8am","9am","10am","11am","12pm","1pm","2pm","3pm","4pm","5pm","6pm","7pm","8pm","9pm","10pm","11pm")
+        )
+                           
+    }
+    
   })
   
   output$mile_plot <- renderPlot({
@@ -331,16 +415,124 @@ server <- function(input, output, session){
   })
   
   
+  # TABLES
   
+  output$daily_table <- renderUI({
+    div(
+      datatable(
+        daily_table(),
+        options = list(
+          initComplete = JS(
+            "function(settings, json) {",
+            "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
+            "}"),
+          pageLength = 7,
+          scrollX = TRUE,
+          dom = 'tp',
+          columnDefs = list(list(width = '500px', className = 'dt-center', targets = "_all"))
+        ),
+        rownames = FALSE
+      ))
+  })
+  
+  output$hourly_table <- renderUI({
+    div(
+      datatable(
+        hourly_table(),
+        options = list(
+          initComplete = JS(
+            "function(settings, json) {",
+            "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
+            "}"),
+          pageLength = 7,
+          scrollX = TRUE,
+          dom = 'tp',
+          columnDefs = list(list(width = '500px', className = 'dt-center', targets = "_all"))
+        ),
+        rownames = FALSE
+      ))
+  })
+  
+  output$weekly_table <- renderUI({
+    div(
+      datatable(
+        weekly_table(),
+        options = list(
+          initComplete = JS(
+            "function(settings, json) {",
+            "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
+            "}"),
+          pageLength = 7,
+          scrollX = TRUE,
+          dom = 'tp',
+          columnDefs = list(list(width = '500px', className = 'dt-center', targets = "_all"))
+        ),
+        rownames = FALSE
+      ))
+  })
+  
+  output$monthly_table <- renderUI({
+    div(
+      datatable(
+        monthly_table(),
+        options = list(
+          initComplete = JS(
+            "function(settings, json) {",
+            "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
+            "}"),
+          pageLength = 7,
+          scrollX = TRUE,
+          dom = 'tp',
+          columnDefs = list(list(width = '500px', className = 'dt-center', targets = "_all"))
+        ),
+        rownames = FALSE
+      ))
+  })
+  
+  output$mile_table <- renderUI({
+    div(
+      datatable(
+        mile_table(),
+        options = list(
+          initComplete = JS(
+            "function(settings, json) {",
+            "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
+            "}"),
+          pageLength = 7,
+          scrollX = TRUE,
+          dom = 'tp',
+          columnDefs = list(list(width = '500px', className = 'dt-center', targets = "_all"))
+        ),
+        rownames = FALSE
+      ))
+  })
+  
+  output$trip_table <- renderUI({
+    div(
+      datatable(
+        trip_table(),
+        options = list(
+          initComplete = JS(
+            "function(settings, json) {",
+            "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
+            "}"),
+          pageLength = 7,
+          scrollX = TRUE,
+          dom = 'tp',
+          columnDefs = list(list(width = '500px', className = 'dt-center', targets = "_all"))
+        ),
+        rownames = FALSE
+      ))
+  })
   # render graph and table output
   output$plot_and_table <- renderUI({
     
     if(input$bar_view == "daily"){
       fluidPage(
-        fluidRow( style = "height:40vh;",
+        fluidRow( style = "height:80vh;",
                   column(12, div(plotOutput("daily_plot"))),
                   #HTML("</br></br></br></br></br>"),
-                  #column(12, uiOutput("daily_table"))
+                  column(12, uiOutput("daily_table"))
         )
       )
     }
@@ -349,7 +541,7 @@ server <- function(input, output, session){
                  fluidRow(
                    column(12, div(plotOutput("hourly_plot"))),
                    #HTML("</br></br></br></br></br>"),
-                   #column(12, uiOutput("hourly_table"))
+                   column(12, uiOutput("hourly_table"))
                  )
       )
     }
@@ -358,7 +550,7 @@ server <- function(input, output, session){
                  fluidRow(
                    column(12, div(plotOutput("weekly_plot"))),
                    #HTML("</br></br></br></br></br>"),
-                   #column(12, uiOutput("weekly_table"))
+                   column(12, uiOutput("weekly_table"))
                  )
       )
     }
@@ -367,7 +559,7 @@ server <- function(input, output, session){
         fluidRow(
           column(12, div(plotOutput("monthly_plot"))),
           #HTML("</br></br></br></br></br>"),
-          #column(12, uiOutput("monthly_table"))
+          column(12, uiOutput("monthly_table"))
         )
       )
     }
@@ -376,14 +568,16 @@ server <- function(input, output, session){
         fluidRow(
           column(12, div(plotOutput("mile_plot"))),
           #HTML("</br></br></br></br></br>"),
-          #column(12, uiOutput("monthly_table"))
+          column(12, uiOutput("mile_table"))
         )
       )
     }
     else{
       fluidPage(
         fluidRow(
-          column(12, div(plotOutput("trip_plot")))
+          column(12, div(plotOutput("trip_plot"))),
+          #HTML("</br></br></br></br></br>"),
+          column(12, uiOutput("trip_table"))
         )
       )
     }
