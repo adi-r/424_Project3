@@ -47,6 +47,7 @@ company_names <-  c("All Taxis" = "all_taxis", company_names)
 # Create 'comms' to store list of all Community areas
 comm_names <- unique(row.names(communities))
 comm_names <- sort(comm_names, decreasing = FALSE)
+comm_names2 <- comm_names
 comm_names <-  c("All Communities" = "all_comms", "Outside Chicago" = 0, comm_names)
 
 
@@ -382,7 +383,7 @@ server <- function(input, output, session){
     data <- dataframeReactive()
     
     breaks <- c(0, 180, 300, 480, 600, 720, 900, 1200, 1800, 2700, 3600, 7200, 10800, 14400, 18000)
-    bins <- c("3min","5min","8min","10min","12min","15min","20min","30min","45min","1hr","2hr","3hr","4hr","5hr")
+    bins <- c("2min","5min","8min","10min","12min","15min","20min","30min","45min","1hr","2hr","3hr","4hr","5hr")
     
     args <- cut(data$sec,
                   breaks=breaks,
@@ -403,17 +404,40 @@ server <- function(input, output, session){
   
   # Percentage Dataframe
   pct_df <- reactive({
-    table_frame <- mapdata()
-    # Check for direction
-    if(input$dir_view == "to"){
-      table_frame<-table_frame[!(table_frame$dir == "dropoff"),]
-      return(table_frame)
+    if((input$comm_view != 'all_comms') & (input$comm_view != 0)){
+      data <- mapdata()
+      # Check for direction
+      if(input$dir_view == "to"){
+        data <- data[!(data$dir == "dropoff"),]
+        return(data)
+      }
+      else{
+        data <- data[!(data$dir == "pickup"),]
+        return(data)
+      }
     }
     else{
-      table_frame<-table_frame[!(table_frame$dir == "pickup"),]
-      return(table_frame)
+      validate(
+        need(input$comm_view != 'all_comms', 'Please select a community'),
+        need(input$comm_view != 0, 'Please select a community')
+      )
     }
     
+  })
+  
+  # Percentage Table
+  pct_table <- reactive({
+    table_frame <- pct_df()
+    table_frame <- table_frame %>% rename(comm_code = area_num_1)
+    communities <- tibble::rownames_to_column(communities, "community")
+    communities$comm_code <- as.character(communities$comm_code)
+    table_frame <- merge(table_frame, communities, by="comm_code")
+    
+    print(table_frame)
+    print(communities)
+    table_frame <- table_frame[, c('community', 'comm_code', 'percentage')]
+    table_frame <- table_frame %>% rename(Community = community, `Area Code` = comm_code, Percentage = percentage)
+    return(table_frame)
   })
   
   # === BAR PLOTS ===
@@ -492,9 +516,10 @@ server <- function(input, output, session){
   
   # Percentage Plot
   output$pct_plot <- renderPlot({
-    ggplot(data = pct_df(), aes(x = area_num_1, y = percentage)) +
+    
+    ggplot(data = pct_table(), aes(x = Percentage, y = factor(Community, level = comm_names2))) +
       geom_bar(stat = "identity") + 
-      labs(x = "Community Area", y ="Percent of Rides", title = "%age of Rides to/from") 
+      labs(x ="Percent of Rides", y = "Community Area", title = "%age of Rides to/from") 
   })
   
   # === TABLES LAYOUT ===
@@ -684,7 +709,7 @@ server <- function(input, output, session){
         fluidRow(
           column(12, div(plotOutput("pct_plot"))),
           #HTML("</br></br></br></br></br>"),
-          #column(12, uiOutput("mile_table"))
+          column(12, uiOutput("pct_table"))
         )
       )
     }
