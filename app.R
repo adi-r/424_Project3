@@ -1,4 +1,4 @@
-setwd("C:/Users/aranga22/Downloads/Academics/Sem 2/424 Visual Data/Projects/424_Project3")
+#setwd("C:/Users/aranga22/Downloads/Academics/Sem 2/424 Visual Data/Projects/424_Project3")
 
 
 # LIBRARIES=======================================================================================================
@@ -13,7 +13,7 @@ library(dplyr)
 library(DT)
 library(tidyr)
 library(scales)
-library(shiny)
+# library(shiny)
 library(shinyjs)
 library(shinydashboard)
 library(stringr)
@@ -22,9 +22,9 @@ library(stringr)
 options(scipen=999)
 
 # READ DATA=======================================================================================================
-all_df <- do.call(rbind, lapply(list.files(pattern = "*.csv"), read.csv))
-companies <- read.csv('./ext/companies.csv', row.names = 1)
-communities <- read.csv('./ext/communities.csv', row.names = 1)  
+all_df <- do.call(rbind, lapply(list.files(pattern = glob2rx("p*.csv")), read.csv))
+companies <- read.csv('companies.csv', row.names = 1)
+communities <- read.csv('communities.csv', row.names = 1)  
 
 # PREPROCESSING======================================================================
 # Remove index column in df
@@ -52,23 +52,10 @@ comm_names <-  c("All Communities" = "all_comms", "Outside Chicago" = 0, comm_na
 shape_file <- readOGR('shapes')
 spt <- spTransform(shape_file, CRS("+proj=longlat +datum=WGS84"))
 
-#Credits for below code snippet: https://stackoverflow.com/questions/70288989/programatically-trigger-marker-mouse-click-event-in-r-leaflet-for-shiny
-
-# create js function that triggers a click on a marker selected by station name
-jsCode <- 'shinyjs.markerClick = function(id) {
-              map.eachLayer(function (layer) {
-                if (layer.options.layerId == id) {
-                  layer.fire("click");
-                }
-              })
-           };'
-
 
 # UI==============================================================================================================
 ui <- fluidPage(
-  shinyjs::useShinyjs(),
-  shinyjs::extendShinyjs(text = jsCode, functions = c('markerClick')),
-  titlePanel("CS424 Project-2"),
+  titlePanel("CS424 Project-3"),
   fluidRow(
     #height = "100%",
     #column-1 for about and controls 
@@ -81,9 +68,8 @@ ui <- fluidPage(
              <h2> <b>Created April 20th, 2022</b></h2>,
              <h3> This App presents the Chicago Taxi Ridership data in the various community areas obtained from the Chicago Data Portal website </h3>
              <h3> <b> *Data Sources: </b></h3>
-             <h3><a href=\"https://data.cityofchicago.org/Transportation/CTA-Ridership-L-Station-Entries-Daily-Totals/5neh-572f\">link L-Ridership data</a> </h3>
-          <h3>  <a href=\"https://data.cityofchicago.org/Transportation/CTA-System-Information-List-of-L-Stops/8pix-ypme\">link L-System_Information data</a> </h3>
-          </br>"),
+             <h3><a href=\"https://data.cityofchicago.org/Transportation/Taxi-Trips-2019/h4cq-z3dy</a> </h3>
+            </br>"),
               
               style = "height:85vh;", 
               fluidRow(style = "margin-top:15%",
@@ -93,7 +79,7 @@ ui <- fluidPage(
                                     selected = "incl_comm",
                                     inline = FALSE)
               ),
-              
+                
               fluidRow(radioButtons("dist_view", "Distance",
                                     c("Miles" = "mi",
                                       "Kilometers" = "km"),
@@ -115,7 +101,7 @@ ui <- fluidPage(
                                     inline = FALSE)
               ),
               
-              HTML("<br>"),
+              
               fluidRow(
                 selectizeInput("taxi_view", "Taxi Company", choices = company_names, selected="all_taxis"),
               ),
@@ -140,24 +126,22 @@ ui <- fluidPage(
            
            #Map 
            column(width = 4,
-                  fluidRow( style = "height:85vh;", leafletOutput(height = "100%","map_dash"))
+                  fluidRow( leafletOutput("map_dash"))
            ),
            
            # Bar Plot
            column( width = 4,
-                   fluidRow(style = "height:15vh;", uiOutput(height = "150%", style ="width: 100%;","plots")),
+                   fluidRow(uiOutput("plots")),
                    ),
            
            # Tables 
            column( width = 4,
                    #The yearly graph for station goes here 
-                   fluidRow(style = "margin-top:300px; height:60vh;", uiOutput(height = "100%", "tables"))
+                   fluidRow(uiOutput("tables"))
                    
            )
            
     )
-    
-    
     
   )
 )
@@ -526,14 +510,10 @@ server <- function(input, output, session){
       datatable(
         daily_table(),
         options = list(
-          initComplete = JS(
-            "function(settings, json) {",
-            "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
-            "}"),
           pageLength = 7,
           scrollX = TRUE,
           dom = 'tp',
-          columnDefs = list(list(width = '500px', className = 'dt-center', targets = "_all"))
+          columnDefs = list(list(className = 'dt-center', targets = "_all"))
         ),
         rownames = FALSE
       ))
@@ -545,14 +525,10 @@ server <- function(input, output, session){
       datatable(
         hourly_table(),
         options = list(
-          initComplete = JS(
-            "function(settings, json) {",
-            "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
-            "}"),
           pageLength = 7,
           scrollX = TRUE,
           dom = 'tp',
-          columnDefs = list(list(width = '500px', className = 'dt-center', targets = "_all"))
+          columnDefs = list(list(className = 'dt-center', targets = "_all"))
         ),
         rownames = FALSE
       ))
@@ -564,14 +540,10 @@ server <- function(input, output, session){
       datatable(
         weekly_table(),
         options = list(
-          initComplete = JS(
-            "function(settings, json) {",
-            "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
-            "}"),
           pageLength = 7,
           scrollX = TRUE,
           dom = 'tp',
-          columnDefs = list(list(width = '500px', className = 'dt-center', targets = "_all"))
+          columnDefs = list(list(className = 'dt-center', targets = "_all"))
         ),
         rownames = FALSE
       ))
@@ -583,14 +555,10 @@ server <- function(input, output, session){
       datatable(
         monthly_table(),
         options = list(
-          initComplete = JS(
-            "function(settings, json) {",
-            "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
-            "}"),
           pageLength = 7,
           scrollX = TRUE,
           dom = 'tp',
-          columnDefs = list(list(width = '500px', className = 'dt-center', targets = "_all"))
+          columnDefs = list(list(className = 'dt-center', targets = "_all"))
         ),
         rownames = FALSE
       ))
@@ -602,14 +570,10 @@ server <- function(input, output, session){
       datatable(
         mile_table(),
         options = list(
-          initComplete = JS(
-            "function(settings, json) {",
-            "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
-            "}"),
           pageLength = 7,
           scrollX = TRUE,
           dom = 'tp',
-          columnDefs = list(list(width = '500px', className = 'dt-center', targets = "_all"))
+          columnDefs = list(list(className = 'dt-center', targets = "_all"))
         ),
         rownames = FALSE
       ))
@@ -621,14 +585,10 @@ server <- function(input, output, session){
       datatable(
         trip_table(),
         options = list(
-          initComplete = JS(
-            "function(settings, json) {",
-            "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
-            "}"),
           pageLength = 7,
           scrollX = TRUE,
           dom = 'tp',
-          columnDefs = list(list(width = '500px', className = 'dt-center', targets = "_all"))
+          columnDefs = list(list(className = 'dt-center', targets = "_all"))
         ),
         rownames = FALSE
       ))
@@ -640,14 +600,10 @@ server <- function(input, output, session){
       datatable(
         pct_table(),
         options = list(
-          initComplete = JS(
-            "function(settings, json) {",
-            "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
-            "}"),
           pageLength = 7,
           scrollX = TRUE,
           dom = 'tp',
-          columnDefs = list(list(width = '500px', className = 'dt-center', targets = "_all"))
+          columnDefs = list(list(className = 'dt-center', targets = "_all"))
         ),
         rownames = FALSE
       ))
@@ -658,50 +614,50 @@ server <- function(input, output, session){
     
     if(input$bar_view == "daily"){
       fluidPage(
-        fluidRow( style = "height:80vh;",
-                  column(12, div(plotOutput("daily_plot")))
+        fluidRow( 
+                  column(12, plotOutput("daily_plot"))
         )
       )
     }
     else if(input$bar_view == "hourly"){
-      fluidPage( style = "height:80vh;",
+      fluidPage( 
                  fluidRow(
-                   column(12, div(plotOutput("hourly_plot")))
+                   column(12, plotOutput("hourly_plot"))
                  )
       )
     }
     else if(input$bar_view == "weekly"){
-      fluidPage( style = "height:80vh;",
+      fluidPage( 
                  fluidRow(
-                   column(12, div(plotOutput("weekly_plot")))
+                   column(12, plotOutput("weekly_plot"))
                  )
       )
     }
     else if(input$bar_view == "monthly"){
       fluidPage(
         fluidRow(
-          column(12, div(plotOutput("monthly_plot")))
+          column(12, plotOutput("monthly_plot"))
         )
       )
     }
     else if(input$bar_view == "bmile"){
       fluidPage(
         fluidRow(
-          column(12, div(plotOutput("mile_plot")))
+          column(12, plotOutput("mile_plot"))
         )
       )
     }
     else if(input$bar_view == "pct"){
       fluidPage(
         fluidRow(
-          column(12, div(plotOutput("pct_plot")))
+          column(12, plotOutput("pct_plot"))
         )
       )
     }
     else{
       fluidPage(
         fluidRow(
-          column(12, div(plotOutput("trip_plot")))
+          column(12, plotOutput("trip_plot"))
         )
       )
     }
@@ -715,50 +671,50 @@ server <- function(input, output, session){
     
     if(input$bar_view == "daily"){
       fluidPage(
-        fluidRow( style = "height:80vh;",
-                  column(12, div(uiOutput("daily_table")))
+        fluidRow( 
+                  column(12, uiOutput("daily_table"))
         )
       )
     }
     else if(input$bar_view == "hourly"){
-      fluidPage( style = "height:80vh;",
+      fluidPage( 
                  fluidRow(
-                   column(12, div(uiOutput("hourly_table")))
+                   column(12, uiOutput("hourly_table"))
                  )
       )
     }
     else if(input$bar_view == "weekly"){
-      fluidPage( style = "height:80vh;",
+      fluidPage( 
                  fluidRow(
-                   column(12, div(uiOutput("weekly_table")))
+                   column(12, uiOutput("weekly_table"))
                  )
       )
     }
     else if(input$bar_view == "monthly"){
-      fluidPage( style = "height:80vh;",
+      fluidPage( 
         fluidRow(
-          column(12, div(uiOutput("monthly_table")))
+          column(12, uiOutput("monthly_table"))
         )
       )
     }
     else if(input$bar_view == "bmile"){
-      fluidPage( style = "height:80vh;",
+      fluidPage(
         fluidRow(
-          column(12, div(uiOutput("mile_table")))
+          column(12, uiOutput("mile_table"))
         )
       )
     }
     else if(input$bar_view == "pct"){
-      fluidPage( style = "height:80vh;",
+      fluidPage( 
         fluidRow(
-          column(12, div(uiOutput("pct_table")))
+          column(12, uiOutput("pct_table"))
         )
       )
     }
     else{
-      fluidPage( style = "height:80vh;",
+      fluidPage(
         fluidRow(
-          column(12, div(uiOutput("trip_table")))
+          column(12, uiOutput("trip_table"))
         )
       )
     }
@@ -814,7 +770,7 @@ server <- function(input, output, session){
         addPolygons(data=spt,
                     weight=1,
                     highlightOptions = highlightOptions(color = "white", weight = 3, bringToFront = TRUE)
-        )
+        ) 
     }
     else{
       # Get community data and percentage
@@ -828,7 +784,7 @@ server <- function(input, output, session){
         addPolygons(data=spt,
                     weight=1,
                     highlightOptions = highlightOptions(color = "white", weight = 3, bringToFront = TRUE)
-        )
+        ) 
       spt_from <- spt
       spt_to <- spt
       
@@ -844,12 +800,12 @@ server <- function(input, output, session){
       
       # label data for info hover
       from_labels <- sprintf(
-        "<strong>Community: %s</strong><br/>percent=%g",
+        "Community: %s <br/> percent=%g",
         spt_from@data$community, spt_from@data$percentage
       ) %>% lapply(htmltools::HTML)
       
       to_labels <- sprintf(
-        "<strong>Community: %s</strong><br/>percent=%g",
+        "Community: %s <br/> percent=%g",
         spt_to@data$community, spt_to@data$percentage
       ) %>% lapply(htmltools::HTML)
       
